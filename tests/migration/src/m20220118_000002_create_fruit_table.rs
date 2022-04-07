@@ -1,5 +1,5 @@
 use crate::m20220118_000001_create_cake_table::Cake;
-use sea_orm::DbBackend;
+use sea_orm::{DbConn, DbErr};
 use sea_schema::migration::prelude::*;
 
 pub struct Migration;
@@ -11,8 +11,8 @@ impl MigrationName for Migration {
 }
 
 #[async_trait::async_trait]
-impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+impl MigrationTrait<DbConn> for Migration {
+    async fn up(&self, manager: &SchemaManager<DbConn>) -> Result<(), DbErr> {
         manager
             .create_table(
                 Table::create()
@@ -37,8 +37,8 @@ impl MigrationTrait for Migration {
             .await
     }
 
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        if manager.get_database_backend() != DbBackend::Sqlite {
+    async fn down(&self, manager: &SchemaManager<DbConn>) -> Result<(), DbErr> {
+        if manager.get_database_backend() != MigrationDbBackend::Sqlite {
             manager
                 .drop_foreign_key(
                     ForeignKey::drop()

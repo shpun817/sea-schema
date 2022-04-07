@@ -1,97 +1,115 @@
-use sea_orm::sea_query::{
-    extension::postgres::{TypeAlterStatement, TypeCreateStatement, TypeDropStatement},
-    Alias, Expr, ForeignKeyCreateStatement, ForeignKeyDropStatement, IndexCreateStatement,
-    IndexDropStatement, Query, TableAlterStatement, TableCreateStatement, TableDropStatement,
-    TableRenameStatement, TableTruncateStatement,
+use super::{
+    query_tables, MigrationConnection, MigrationDbBackend, MigrationQueryResult,
+    MigrationStatementBuilder,
 };
-use sea_orm::{Condition, ConnectionTrait, DbBackend, DbConn, DbErr, Statement, StatementBuilder};
-
-use super::query_tables;
+use sea_query::{
+    extension::postgres::{TypeAlterStatement, TypeCreateStatement, TypeDropStatement},
+    Alias, Condition, Expr, ForeignKeyCreateStatement, ForeignKeyDropStatement,
+    IndexCreateStatement, IndexDropStatement, Query, TableAlterStatement, TableCreateStatement,
+    TableDropStatement, TableRenameStatement, TableTruncateStatement,
+};
 
 /// Helper struct for writing migration scripts in migration file
-pub struct SchemaManager<'c> {
-    conn: &'c DbConn,
+pub struct SchemaManager<'c, C>
+where
+    C: MigrationConnection,
+{
+    conn: &'c C,
 }
 
-impl<'c> SchemaManager<'c> {
-    pub fn new(conn: &'c DbConn) -> Self {
+impl<'c, C> SchemaManager<'c, C>
+where
+    C: MigrationConnection,
+{
+    pub fn new(conn: &'c C) -> Self {
         Self { conn }
     }
 
-    pub async fn exec_stmt<S>(&self, stmt: S) -> Result<(), DbErr>
+    pub async fn exec_stmt<S>(&self, stmt: S) -> Result<(), C::Error>
     where
-        S: StatementBuilder,
+        S: MigrationStatementBuilder + Sync,
     {
-        let builder = self.conn.get_database_backend();
-        self.conn.execute(builder.build(&stmt)).await.map(|_| ())
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub fn get_database_backend(&self) -> DbBackend {
+    pub fn get_database_backend(&self) -> MigrationDbBackend {
         self.conn.get_database_backend()
     }
 
-    pub fn get_connection(&self) -> &'c DbConn {
-        self.conn
+    pub fn get_connection(&self) -> &'c C::Connection {
+        self.conn.get_connection()
     }
 }
 
 /// Schema Creation
-impl<'c> SchemaManager<'c> {
-    pub async fn create_table(&self, stmt: TableCreateStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+impl<'c, C> SchemaManager<'c, C>
+where
+    C: MigrationConnection,
+{
+    pub async fn create_table(&self, stmt: TableCreateStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn create_index(&self, stmt: IndexCreateStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn create_index(&self, stmt: IndexCreateStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn create_foreign_key(&self, stmt: ForeignKeyCreateStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn create_foreign_key(
+        &self,
+        stmt: ForeignKeyCreateStatement,
+    ) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn create_type(&self, stmt: TypeCreateStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn create_type(&self, stmt: TypeCreateStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 }
 
 /// Schema Mutation
-impl<'c> SchemaManager<'c> {
-    pub async fn alter_table(&self, stmt: TableAlterStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+impl<'c, C> SchemaManager<'c, C>
+where
+    C: MigrationConnection,
+{
+    pub async fn alter_table(&self, stmt: TableAlterStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn drop_table(&self, stmt: TableDropStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn drop_table(&self, stmt: TableDropStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn rename_table(&self, stmt: TableRenameStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn rename_table(&self, stmt: TableRenameStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn truncate_table(&self, stmt: TableTruncateStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn truncate_table(&self, stmt: TableTruncateStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn drop_index(&self, stmt: IndexDropStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn drop_index(&self, stmt: IndexDropStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn drop_foreign_key(&self, stmt: ForeignKeyDropStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn drop_foreign_key(&self, stmt: ForeignKeyDropStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn alter_type(&self, stmt: TypeAlterStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn alter_type(&self, stmt: TypeAlterStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 
-    pub async fn drop_type(&self, stmt: TypeDropStatement) -> Result<(), DbErr> {
-        self.exec_stmt(stmt).await
+    pub async fn drop_type(&self, stmt: TypeDropStatement) -> Result<(), C::Error> {
+        self.conn.exec_stmt(&stmt).await
     }
 }
 
 /// Schema Inspection
-impl<'c> SchemaManager<'c> {
-    pub async fn has_table<T>(&self, table: T) -> Result<bool, DbErr>
+impl<'c, C> SchemaManager<'c, C>
+where
+    C: MigrationConnection,
+{
+    pub async fn has_table<T>(&self, table: T) -> Result<bool, C::Error>
     where
         T: AsRef<str>,
     {
@@ -101,29 +119,28 @@ impl<'c> SchemaManager<'c> {
         stmt.expr_as(Expr::cust("COUNT(*)"), Alias::new("rows"))
             .from_subquery(subquery, Alias::new("subquery"));
 
-        let builder = self.conn.get_database_backend();
         let res = self
             .conn
-            .query_one(builder.build(&stmt))
+            .query_one(&stmt)
             .await?
-            .ok_or_else(|| DbErr::Custom("Fail to check table exists".to_owned()))?;
-        let rows: i64 = res.try_get("", "rows")?;
+            .ok_or_else(|| C::into_migration_error("Fail to check table exists".to_owned()))?;
+        let rows = res.try_get_i64("rows")?;
 
         Ok(rows > 0)
     }
 
-    pub async fn has_column<T, C>(&self, table: T, column: C) -> Result<bool, DbErr>
+    pub async fn has_column<TBL, COL>(&self, table: TBL, column: COL) -> Result<bool, C::Error>
     where
-        T: AsRef<str>,
-        C: AsRef<str>,
+        TBL: AsRef<str>,
+        COL: AsRef<str>,
     {
         let db_backend = self.conn.get_database_backend();
         let found = match db_backend {
-            DbBackend::MySql | DbBackend::Postgres => {
+            MigrationDbBackend::MySql | MigrationDbBackend::Postgres => {
                 let schema_name = match db_backend {
-                    DbBackend::MySql => "DATABASE()",
-                    DbBackend::Postgres => "CURRENT_SCHEMA()",
-                    DbBackend::Sqlite => unreachable!(),
+                    MigrationDbBackend::MySql => "DATABASE()",
+                    MigrationDbBackend::Postgres => "CURRENT_SCHEMA()",
+                    MigrationDbBackend::Sqlite => unreachable!(),
                 };
                 let mut stmt = Query::select();
                 stmt.expr_as(Expr::cust("COUNT(*)"), Alias::new("rows"))
@@ -138,23 +155,18 @@ impl<'c> SchemaManager<'c> {
                             .add(Expr::col(Alias::new("column_name")).eq(column.as_ref())),
                     );
 
-                let res = self
-                    .conn
-                    .query_one(db_backend.build(&stmt))
-                    .await?
-                    .ok_or_else(|| DbErr::Custom("Fail to check column exists".to_owned()))?;
-                let rows: i64 = res.try_get("", "rows")?;
+                let res = self.conn.query_one(&stmt).await?.ok_or_else(|| {
+                    C::into_migration_error("Fail to check column exists".to_owned())
+                })?;
+                let rows = res.try_get_i64("rows")?;
                 rows > 0
             }
-            DbBackend::Sqlite => {
-                let stmt = Statement::from_string(
-                    db_backend,
-                    format!("PRAGMA table_info({})", table.as_ref()),
-                );
-                let results = self.conn.query_all(stmt).await?;
+            MigrationDbBackend::Sqlite => {
+                let stmt = format!("PRAGMA table_info({})", table.as_ref());
+                let results = self.conn.query_all(&stmt).await?;
                 let mut found = false;
                 for res in results {
-                    let name: String = res.try_get("", "name")?;
+                    let name = res.try_get_string("name")?;
                     if name.as_str() == column.as_ref() {
                         found = true;
                     }

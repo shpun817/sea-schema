@@ -10,8 +10,8 @@ impl MigrationName for Migration {
 }
 
 #[async_trait::async_trait]
-impl MigrationTrait for Migration {
-    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+impl MigrationTrait<DbConn> for Migration {
+    async fn up(&self, manager: &SchemaManager<DbConn>) -> Result<(), DbErr> {
         let db = manager.get_connection();
 
         cake::ActiveModel {
@@ -23,7 +23,7 @@ impl MigrationTrait for Migration {
         .map(|_| ())
     }
 
-    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+    async fn down(&self, manager: &SchemaManager<DbConn>) -> Result<(), DbErr> {
         let db = manager.get_connection();
 
         cake::Entity::delete_many()
