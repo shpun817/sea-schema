@@ -1,3 +1,4 @@
+use sea_orm::migration::*;
 use sea_orm::{entity::prelude::*, Set};
 use sea_schema::migration::prelude::*;
 

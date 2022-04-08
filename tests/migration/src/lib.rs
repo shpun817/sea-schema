@@ -1,4 +1,4 @@
-use sea_orm::DbConn;
+use sea_orm::migration::*;
 use sea_schema::migration::prelude::*;
 
 mod m20220118_000001_create_cake_table;

@@ -1,4 +1,4 @@
-use sea_orm::{Database, DbErr};
+use sea_orm::{Database, DbErr, migration::*};
 use sea_schema::migration::*;
 use sea_schema_migration_test::Migrator;
 

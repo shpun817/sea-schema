@@ -1,3 +1,4 @@
+use sea_orm::migration::*;
 use sea_orm::{DbConn, DbErr};
 use sea_schema::migration::prelude::*;
 

@@ -1,5 +1,5 @@
 use crate::m20220118_000001_create_cake_table::Cake;
-use sea_orm::{DbConn, DbErr};
+use sea_orm::migration::*;
 use sea_schema::migration::prelude::*;
 
 pub struct Migration;
