@@ -76,7 +76,7 @@ build_type_stmt!(sea_query::extension::postgres::TypeCreateStatement);
 build_type_stmt!(sea_query::extension::postgres::TypeDropStatement);
 
 impl MigrationStatementBuilder for String {
-    fn build(&self, db_backend: &MigrationDbBackend) -> (String, Vec<Value>) {
+    fn build(&self, _: &MigrationDbBackend) -> (String, Vec<Value>) {
         (self.to_string(), Vec::new())
     }
 }

@@ -6,6 +6,7 @@ pub mod prelude;
 pub mod seaql_migrations;
 pub mod statement;
 
+pub use async_std;
 pub use async_trait;
 pub use connection::*;
 pub use error::*;

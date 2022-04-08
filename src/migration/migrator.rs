@@ -1,5 +1,5 @@
 use super::{
-    seaql_migrations, MigrationConnection, MigrationDbBackend, MigrationName, MigrationQueryResult,
+    seaql_migrations, MigrationConnection, MigrationDbBackend, MigrationQueryResult,
     MigrationTrait, SchemaManager,
 };
 use sea_query::{
@@ -40,13 +40,13 @@ impl Display for MigrationStatus {
 /// Performing migrations on a database
 #[async_trait::async_trait]
 pub trait MigratorTrait: Send {
-    type Conn: MigrationConnection;
+    type Connection: MigrationConnection;
 
     /// Vector of migrations in time sequence
-    fn migrations() -> Vec<Box<dyn MigrationTrait<Self::Conn>>>;
+    fn migrations() -> Vec<Box<dyn MigrationTrait<Self::Connection>>>;
 
     /// Get list of migrations wrapped in `Migration` struct
-    fn get_migration_files() -> Vec<Migration<Self::Conn>> {
+    fn get_migration_files() -> Vec<Migration<Self::Connection>> {
         Self::migrations()
             .into_iter()
             .map(|migration| Migration {
@@ -58,8 +58,9 @@ pub trait MigratorTrait: Send {
 
     /// Get list of applied migrations from database
     async fn get_migration_models(
-        db: &Self::Conn,
-    ) -> Result<Vec<seaql_migrations::Model>, <Self::Conn as MigrationConnection>::Error> {
+        db: &Self::Connection,
+    ) -> Result<Vec<seaql_migrations::Model>, <Self::Connection as MigrationConnection>::Error>
+    {
         Self::install(db).await?;
         let stmt = Query::select()
             .from(seaql_migrations::Table)
@@ -78,8 +79,9 @@ pub trait MigratorTrait: Send {
 
     /// Get list of migrations with status
     async fn get_migration_with_status(
-        db: &Self::Conn,
-    ) -> Result<Vec<Migration<Self::Conn>>, <Self::Conn as MigrationConnection>::Error> {
+        db: &Self::Connection,
+    ) -> Result<Vec<Migration<Self::Connection>>, <Self::Connection as MigrationConnection>::Error>
+    {
         Self::install(db).await?;
         let mut migration_files = Self::get_migration_files();
         let migration_models = Self::get_migration_models(db).await?;
@@ -88,10 +90,10 @@ pub trait MigratorTrait: Send {
                 if migration_file.migration.name() == migration_model.version.as_str() {
                     migration_file.status = MigrationStatus::Applied;
                 } else {
-                    return Err(Self::Conn::into_migration_error(format!("Migration mismatch: applied migration != migration file, '{0}' != '{1}'\nMigration '{0}' has been applied but its corresponding migration file is missing.", migration_file.migration.name(), migration_model.version)));
+                    return Err(Self::Connection::into_migration_error(format!("Migration mismatch: applied migration != migration file, '{0}' != '{1}'\nMigration '{0}' has been applied but its corresponding migration file is missing.", migration_file.migration.name(), migration_model.version)));
                 }
             } else {
-                return Err(Self::Conn::into_migration_error(format!("Migration file of version '{}' is missing, this migration has been applied but its file is missing", migration_model.version)));
+                return Err(Self::Connection::into_migration_error(format!("Migration file of version '{}' is missing, this migration has been applied but its file is missing", migration_model.version)));
             }
         }
         Ok(migration_files)
@@ -99,8 +101,9 @@ pub trait MigratorTrait: Send {
 
     /// Get list of pending migrations
     async fn get_pending_migrations(
-        db: &Self::Conn,
-    ) -> Result<Vec<Migration<Self::Conn>>, <Self::Conn as MigrationConnection>::Error> {
+        db: &Self::Connection,
+    ) -> Result<Vec<Migration<Self::Connection>>, <Self::Connection as MigrationConnection>::Error>
+    {
         Self::install(db).await?;
         Ok(Self::get_migration_with_status(db)
             .await?
@@ -111,8 +114,9 @@ pub trait MigratorTrait: Send {
 
     /// Get list of applied migrations
     async fn get_applied_migrations(
-        db: &Self::Conn,
-    ) -> Result<Vec<Migration<Self::Conn>>, <Self::Conn as MigrationConnection>::Error> {
+        db: &Self::Connection,
+    ) -> Result<Vec<Migration<Self::Connection>>, <Self::Connection as MigrationConnection>::Error>
+    {
         Self::install(db).await?;
         Ok(Self::get_migration_with_status(db)
             .await?
@@ -122,7 +126,9 @@ pub trait MigratorTrait: Send {
     }
 
     /// Create migration table `seaql_migrations` in the database
-    async fn install(db: &Self::Conn) -> Result<(), <Self::Conn as MigrationConnection>::Error> {
+    async fn install(
+        db: &Self::Connection,
+    ) -> Result<(), <Self::Connection as MigrationConnection>::Error> {
         let stmt = Table::create()
             .if_not_exists()
             .table(seaql_migrations::Table)
@@ -142,7 +148,9 @@ pub trait MigratorTrait: Send {
     }
 
     /// Drop all tables from the database, then reapply all migrations
-    async fn fresh(db: &Self::Conn) -> Result<(), <Self::Conn as MigrationConnection>::Error> {
+    async fn fresh(
+        db: &Self::Connection,
+    ) -> Result<(), <Self::Connection as MigrationConnection>::Error> {
         Self::install(db).await?;
         let db_backend = db.get_database_backend();
 
@@ -219,18 +227,24 @@ pub trait MigratorTrait: Send {
     }
 
     /// Rollback all applied migrations, then reapply all migrations
-    async fn refresh(db: &Self::Conn) -> Result<(), <Self::Conn as MigrationConnection>::Error> {
+    async fn refresh(
+        db: &Self::Connection,
+    ) -> Result<(), <Self::Connection as MigrationConnection>::Error> {
         Self::down(db, None).await?;
         Self::up(db, None).await
     }
 
     /// Rollback all applied migrations
-    async fn reset(db: &Self::Conn) -> Result<(), <Self::Conn as MigrationConnection>::Error> {
+    async fn reset(
+        db: &Self::Connection,
+    ) -> Result<(), <Self::Connection as MigrationConnection>::Error> {
         Self::down(db, None).await
     }
 
     /// Check the status of all migrations
-    async fn status(db: &Self::Conn) -> Result<(), <Self::Conn as MigrationConnection>::Error> {
+    async fn status(
+        db: &Self::Connection,
+    ) -> Result<(), <Self::Connection as MigrationConnection>::Error> {
         Self::install(db).await?;
 
         info!("Checking migration status");
@@ -244,9 +258,9 @@ pub trait MigratorTrait: Send {
 
     /// Apply pending migrations
     async fn up(
-        db: &Self::Conn,
+        db: &Self::Connection,
         mut steps: Option<u32>,
-    ) -> Result<(), <Self::Conn as MigrationConnection>::Error> {
+    ) -> Result<(), <Self::Connection as MigrationConnection>::Error> {
         Self::install(db).await?;
         let manager = SchemaManager::new(db);
 
@@ -289,9 +303,9 @@ pub trait MigratorTrait: Send {
 
     /// Rollback applied migrations
     async fn down(
-        db: &Self::Conn,
+        db: &Self::Connection,
         mut steps: Option<u32>,
-    ) -> Result<(), <Self::Conn as MigrationConnection>::Error> {
+    ) -> Result<(), <Self::Connection as MigrationConnection>::Error> {
         Self::install(db).await?;
         let manager = SchemaManager::new(db);
 

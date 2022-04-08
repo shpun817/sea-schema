@@ -1,13 +1,9 @@
 use super::{IntoMigrationError, MigrationStatementBuilder};
 
-/// The type of database backend for real world databases.
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum MigrationDbBackend {
-    /// A MySQL backend
     MySql,
-    /// A PostgreSQL backend
     Postgres,
-    /// A SQLite backend
     Sqlite,
 }
 

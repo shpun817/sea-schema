@@ -9,7 +9,7 @@ pub struct Migrator;
 
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
-    type Conn = DbConn;
+    type Connection = DbConn;
 
     fn migrations() -> Vec<Box<dyn MigrationTrait<DbConn>>> {
         vec![
